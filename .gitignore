@@ -1,0 +1,17 @@
+.DS_Store
+
+# Original Windows installer bundle. The Mac workflow is cleanly rebuilt in mac-bilidown/.
+16、Bilidown v1.2.3 专业版  (B站视频下载工具)_附安装手册/
+
+# Local download/test output
+*.part
+*.ytdl
+*.aria2
+*.download
+*.gz.download
+
+# Editor and shell noise
+.idea/
+.vscode/
+*.swp
+*.tmp

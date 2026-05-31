@@ -1,0 +1,535 @@
+#!/usr/bin/env zsh
+
+emulate -L zsh
+set -o pipefail
+
+readonly EXIT_OK=0
+readonly EXIT_USAGE=2
+readonly EXIT_DEPS=10
+readonly EXIT_COOKIE=20
+readonly EXIT_DOWNLOAD=30
+
+readonly SCRIPT_PATH="${0:A}"
+readonly ROOT_DIR="${SCRIPT_PATH:h:h}"
+
+print_usage() {
+  cat <<'EOF'
+Bilidown Mac CLI
+
+Usage:
+  bilidown doctor [--url URL] [--skip-cookie-check]
+  bilidown info URL [--json] [--playlist current|all] [--no-cookies] [--cookies-from-browser BROWSER]
+  bilidown download URL [--output DIR] [--quality best|1080p|720p|audio] [--playlist current|all]
+                    [--no-cookies] [--cookies-from-browser BROWSER]
+
+Defaults:
+  output:   ~/Downloads/Bilidown
+  quality:  best
+  playlist: current
+  cookies:  Chrome, via yt-dlp --cookies-from-browser chrome
+
+Exit codes:
+  0   success
+  2   argument or URL error
+  10  bundled dependency missing or not executable
+  20  Chrome/cookie access failed
+  30  download, metadata, or merge failed
+EOF
+}
+
+log() {
+  print -r -- "$*" >&2
+}
+
+usage_error() {
+  log "bilidown: $*"
+  log "Run 'bilidown help' for usage."
+  exit "$EXIT_USAGE"
+}
+
+platform_name() {
+  local os machine
+  os="$(uname -s)"
+  machine="$(uname -m)"
+
+  if [[ "$os" != "Darwin" ]]; then
+    log "bilidown: this workflow is built for macOS; detected $os/$machine"
+    exit "$EXIT_DEPS"
+  fi
+
+  case "$machine" in
+    arm64) print -r -- "darwin-arm64" ;;
+    x86_64) print -r -- "darwin-x64" ;;
+    *)
+      log "bilidown: unsupported macOS architecture: $machine"
+      exit "$EXIT_DEPS"
+      ;;
+  esac
+}
+
+readonly PLATFORM="$(platform_name)"
+readonly VENDOR_DIR="$ROOT_DIR/vendor/$PLATFORM"
+readonly YTDLP="$VENDOR_DIR/yt-dlp"
+readonly FFMPEG="$VENDOR_DIR/ffmpeg"
+readonly FFPROBE="$VENDOR_DIR/ffprobe"
+
+is_bilibili_url() {
+  local url="$1"
+  [[ "$url" =~ '^https?://([^/]+\.)?(bilibili\.com|b23\.tv)(/|$)' ]]
+}
+
+require_url() {
+  local url="$1"
+  if [[ -z "$url" ]]; then
+    usage_error "missing URL"
+  fi
+  if ! is_bilibili_url "$url"; then
+    usage_error "expected a bilibili.com or b23.tv URL: $url"
+  fi
+}
+
+check_one_executable() {
+  local path="$1"
+  local name="$2"
+
+  if [[ ! -e "$path" ]]; then
+    log "missing bundled dependency: $name ($path)"
+    return 1
+  fi
+  if [[ ! -x "$path" ]]; then
+    log "bundled dependency is not executable: $name ($path)"
+    return 1
+  fi
+  return 0
+}
+
+require_deps() {
+  local ok=0
+  check_one_executable "$YTDLP" "yt-dlp" || ok=1
+  check_one_executable "$FFMPEG" "ffmpeg" || ok=1
+
+  if (( ok )); then
+    log "Run: $ROOT_DIR/scripts/fetch-vendor-deps.zsh"
+    exit "$EXIT_DEPS"
+  fi
+}
+
+cookie_args() {
+  local use_cookies="$1"
+  local browser="$2"
+
+  if [[ "$use_cookies" == "1" ]]; then
+    print -r -- "--cookies-from-browser"
+    print -r -- "$browser"
+  fi
+}
+
+cookie_keychain_preflight() {
+  local browser="$1"
+  local timeout="${BILIDOWN_COOKIE_TIMEOUT:-20}"
+  local elapsed=0
+  local pid rc
+
+  if [[ "$(uname -s)" != "Darwin" || "$browser" != "chrome" ]]; then
+    return "$EXIT_OK"
+  fi
+  if ! command -v security >/dev/null 2>&1; then
+    return "$EXIT_OK"
+  fi
+
+  (
+    security find-generic-password -w -a Chrome -s "Chrome Safe Storage" >/dev/null 2>&1
+  ) &
+  pid=$!
+
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 1
+    elapsed=$((elapsed + 1))
+    if (( elapsed >= timeout )); then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      log "Chrome Keychain access timed out after ${timeout}s."
+      log "Run this command once from Terminal and approve the macOS Keychain prompt, or use --no-cookies for public-only downloads."
+      return "$EXIT_COOKIE"
+    fi
+  done
+
+  wait "$pid"
+  rc=$?
+  if (( rc != 0 )); then
+    log "Chrome Keychain access failed."
+    log "Run this command once from Terminal and approve the macOS Keychain prompt, or use --no-cookies for public-only downloads."
+    return "$EXIT_COOKIE"
+  fi
+
+  return "$EXIT_OK"
+}
+
+playlist_args() {
+  local mode="$1"
+  case "$mode" in
+    current)
+      print -r -- "--no-playlist"
+      ;;
+    all)
+      print -r -- "--yes-playlist"
+      ;;
+  esac
+}
+
+validate_playlist() {
+  case "$1" in
+    current|all) return 0 ;;
+    *) usage_error "--playlist must be 'current' or 'all'" ;;
+  esac
+}
+
+validate_quality() {
+  case "$1" in
+    best|1080p|720p|audio) return 0 ;;
+    *) usage_error "--quality must be one of: best, 1080p, 720p, audio" ;;
+  esac
+}
+
+format_selector() {
+  local quality="$1"
+  case "$quality" in
+    best)
+      print -r -- "bestvideo*[vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo*+bestaudio/best"
+      ;;
+    1080p)
+      print -r -- "bestvideo*[height<=1080][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo*[height<=1080]+bestaudio/best[height<=1080]"
+      ;;
+    720p)
+      print -r -- "bestvideo*[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo*[height<=720]+bestaudio/best[height<=720]"
+      ;;
+    audio)
+      print -r -- "bestaudio[acodec^=mp4a]/bestaudio/best"
+      ;;
+  esac
+}
+
+classify_ytdlp_failure() {
+  local err_file="$1"
+
+  if grep -Eiq '(cookies?.*(chrome|decrypt|keychain|permission|unable|could not|failed)|chrome.*(cookies?|keychain)|failed to decrypt|could not find.*cookies?|no such file.*cookies?)' "$err_file"; then
+    return "$EXIT_COOKIE"
+  fi
+
+  return "$EXIT_DOWNLOAD"
+}
+
+run_ytdlp() {
+  local err_file exit_status mapped
+  err_file="$(mktemp -t bilidown-yt-dlp.XXXXXX)"
+
+  "$YTDLP" "$@" 2> >(tee "$err_file" >&2)
+  exit_status=$?
+
+  if (( exit_status == 0 )); then
+    rm -f "$err_file"
+    return "$EXIT_OK"
+  fi
+
+  classify_ytdlp_failure "$err_file"
+  mapped=$?
+  rm -f "$err_file"
+  return "$mapped"
+}
+
+cmd_info() {
+  require_deps
+
+  local url="" json=0 playlist="current" use_cookies=1 cookie_browser="chrome"
+
+  while (( $# )); do
+    case "$1" in
+      --json)
+        json=1
+        ;;
+      --playlist)
+        shift || usage_error "missing value for --playlist"
+        (( $# )) || usage_error "missing value for --playlist"
+        playlist="$1"
+        ;;
+      --no-cookies)
+        use_cookies=0
+        ;;
+      --cookies-from-browser)
+        shift || usage_error "missing value for --cookies-from-browser"
+        (( $# )) || usage_error "missing value for --cookies-from-browser"
+        cookie_browser="$1"
+        ;;
+      -h|--help)
+        print_usage
+        exit "$EXIT_OK"
+        ;;
+      -*)
+        usage_error "unknown option: $1"
+        ;;
+      *)
+        if [[ -n "$url" ]]; then
+          usage_error "unexpected extra URL or argument: $1"
+        fi
+        url="$1"
+        ;;
+    esac
+    shift
+  done
+
+  require_url "$url"
+  validate_playlist "$playlist"
+  if [[ "$use_cookies" == "1" ]]; then
+    cookie_keychain_preflight "$cookie_browser" || exit $?
+  fi
+
+  local -a args
+  args=(
+    --ffmpeg-location "$VENDOR_DIR"
+    --skip-download
+    --no-warnings
+    ${(f)"$(playlist_args "$playlist")"}
+    ${(f)"$(cookie_args "$use_cookies" "$cookie_browser")"}
+  )
+
+  if (( json )); then
+    args+=(--dump-single-json)
+  else
+    args+=(
+      --print "title: %(title)s"
+      --print "id: %(id)s"
+      --print "duration: %(duration_string|unknown)s"
+      --print "url: %(webpage_url)s"
+    )
+  fi
+
+  run_ytdlp "${args[@]}" "$url"
+  exit $?
+}
+
+cmd_download() {
+  require_deps
+
+  local url="" out_dir="$HOME/Downloads/Bilidown" quality="best" playlist="current"
+  local use_cookies=1 cookie_browser="chrome"
+
+  while (( $# )); do
+    case "$1" in
+      -o|--output)
+        shift || usage_error "missing value for --output"
+        (( $# )) || usage_error "missing value for --output"
+        out_dir="$1"
+        ;;
+      --quality)
+        shift || usage_error "missing value for --quality"
+        (( $# )) || usage_error "missing value for --quality"
+        quality="$1"
+        ;;
+      --playlist)
+        shift || usage_error "missing value for --playlist"
+        (( $# )) || usage_error "missing value for --playlist"
+        playlist="$1"
+        ;;
+      --no-cookies)
+        use_cookies=0
+        ;;
+      --cookies-from-browser)
+        shift || usage_error "missing value for --cookies-from-browser"
+        (( $# )) || usage_error "missing value for --cookies-from-browser"
+        cookie_browser="$1"
+        ;;
+      -h|--help)
+        print_usage
+        exit "$EXIT_OK"
+        ;;
+      -*)
+        usage_error "unknown option: $1"
+        ;;
+      *)
+        if [[ -n "$url" ]]; then
+          usage_error "unexpected extra URL or argument: $1"
+        fi
+        url="$1"
+        ;;
+    esac
+    shift
+  done
+
+  require_url "$url"
+  validate_playlist "$playlist"
+  validate_quality "$quality"
+  if [[ "$use_cookies" == "1" ]]; then
+    cookie_keychain_preflight "$cookie_browser" || exit $?
+  fi
+  mkdir -p "$out_dir" || {
+    log "failed to create output directory: $out_dir"
+    exit "$EXIT_DOWNLOAD"
+  }
+
+  local selector
+  selector="$(format_selector "$quality")"
+
+  local -a args
+  args=(
+    --ffmpeg-location "$VENDOR_DIR"
+    --paths "$out_dir"
+    --output "%(title).180B [%(id)s].%(ext)s"
+    --newline
+    --trim-filenames 180
+    --merge-output-format mp4
+    --remux-video mp4
+    --format "$selector"
+    --add-header "Referer:https://www.bilibili.com/"
+    --print "after_move:filepath"
+    ${(f)"$(playlist_args "$playlist")"}
+    ${(f)"$(cookie_args "$use_cookies" "$cookie_browser")"}
+  )
+
+  if [[ "$quality" == "audio" ]]; then
+    args+=(--extract-audio --audio-format m4a)
+  fi
+
+  run_ytdlp "${args[@]}" "$url"
+  exit $?
+}
+
+find_chrome_cookie_dbs() {
+  local chrome_root="$HOME/Library/Application Support/Google/Chrome"
+
+  if [[ ! -d "$chrome_root" ]]; then
+    return 1
+  fi
+
+  find "$chrome_root" -maxdepth 3 -type f \( -path '*/Network/Cookies' -o -name Cookies \) -print 2>/dev/null
+}
+
+cmd_doctor() {
+  local skip_cookie_check=0
+  local probe_url=""
+
+  while (( $# )); do
+    case "$1" in
+      --skip-cookie-check)
+        skip_cookie_check=1
+        ;;
+      --url)
+        shift || usage_error "missing value for --url"
+        (( $# )) || usage_error "missing value for --url"
+        probe_url="$1"
+        ;;
+      -h|--help)
+        print_usage
+        exit "$EXIT_OK"
+        ;;
+      -*)
+        usage_error "unknown option: $1"
+        ;;
+      *)
+        usage_error "unexpected argument: $1"
+        ;;
+    esac
+    shift
+  done
+
+  local dep_error=0
+  print -r -- "Bilidown Mac doctor"
+  print -r -- "root: $ROOT_DIR"
+  print -r -- "platform: $PLATFORM"
+  print -r -- ""
+
+  if check_one_executable "$YTDLP" "yt-dlp"; then
+    print -r -- "yt-dlp: $("$YTDLP" --version 2>/dev/null)"
+  else
+    dep_error=1
+  fi
+
+  if check_one_executable "$FFMPEG" "ffmpeg"; then
+    print -r -- "ffmpeg: $("$FFMPEG" -version 2>/dev/null | head -n 1)"
+  else
+    dep_error=1
+  fi
+
+  if [[ -e "$FFPROBE" ]] && check_one_executable "$FFPROBE" "ffprobe"; then
+    print -r -- "ffprobe: $("$FFPROBE" -version 2>/dev/null | head -n 1)"
+  elif [[ -e "$FFPROBE" ]]; then
+    dep_error=1
+  else
+    print -r -- "ffprobe: optional, not installed"
+  fi
+
+  if (( dep_error )); then
+    print -r -- ""
+    print -r -- "dependency check failed"
+    print -r -- "Run: $ROOT_DIR/scripts/fetch-vendor-deps.zsh"
+    exit "$EXIT_DEPS"
+  fi
+
+  if (( skip_cookie_check )); then
+    print -r -- "chrome cookies: skipped"
+    exit "$EXIT_OK"
+  fi
+
+  print -r -- ""
+  local cookie_dbs
+  cookie_dbs="$(find_chrome_cookie_dbs)"
+  if [[ -n "$cookie_dbs" ]]; then
+    print -r -- "chrome cookie db: found"
+    print -r -- "$cookie_dbs" | sed 's/^/  /'
+  else
+    print -r -- "chrome cookie db: not found"
+    print -r -- "Open Chrome, sign in to bilibili.com, then run doctor again."
+    exit "$EXIT_COOKIE"
+  fi
+
+  if command -v security >/dev/null 2>&1; then
+    if security find-generic-password -s "Chrome Safe Storage" >/dev/null 2>&1; then
+      print -r -- "chrome keychain: item found"
+    else
+      print -r -- "chrome keychain: Chrome Safe Storage item not found"
+      print -r -- "Open Chrome once, then run doctor again. macOS may still prompt on first cookie-backed download."
+      exit "$EXIT_COOKIE"
+    fi
+  else
+    print -r -- "chrome keychain: security command unavailable"
+  fi
+
+  if [[ -n "$probe_url" ]]; then
+    require_url "$probe_url"
+    cookie_keychain_preflight "chrome" || exit $?
+    print -r -- ""
+    print -r -- "metadata probe: $probe_url"
+    run_ytdlp \
+      --ffmpeg-location "$VENDOR_DIR" \
+      --skip-download \
+      --no-warnings \
+      --no-playlist \
+      --cookies-from-browser chrome \
+      --print "title: %(title)s" \
+      "$probe_url"
+    exit $?
+  fi
+
+  exit "$EXIT_OK"
+}
+
+main() {
+  if (( $# == 0 )); then
+    print_usage
+    exit "$EXIT_USAGE"
+  fi
+
+  local command="$1"
+  shift
+
+  case "$command" in
+    download) cmd_download "$@" ;;
+    info) cmd_info "$@" ;;
+    doctor) cmd_doctor "$@" ;;
+    help|-h|--help) print_usage ;;
+    *)
+      usage_error "unknown command: $command"
+      ;;
+  esac
+}
+
+main "$@"
