@@ -1,6 +1,10 @@
 # Bilidown Mac
 
+![Bilidown Mac 封面](Assets/Cover.png)
+
 这是一个 macOS 版 B 站视频下载工具。可以直接打开图形 App 输入链接下载，也可以用命令行工作流调用。
+
+当前版本已经内置专属 App 图标，并在图形界面中加入了轻量的 macOS 玻璃材质效果。
 
 ## 图形 App
 
@@ -25,6 +29,13 @@ dist/BilidownMac.app
 ```
 
 Codex 里也配置了 Run action，可以直接点 Run 启动。
+
+App 图标资源位于：
+
+```text
+Assets/AppIcon.icns
+Assets/AppIcon.png
+```
 
 ## 命令行
 

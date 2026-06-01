@@ -10,8 +10,9 @@ struct BilidownMacApp: App {
         WindowGroup("Bilidown Mac") {
             ContentView()
                 .environmentObject(downloadStore)
-                .frame(minWidth: 700, minHeight: 460)
+                .frame(minWidth: 760, minHeight: 560)
         }
+        .defaultSize(width: 880, height: 620)
         .commands {
             CommandGroup(replacing: .newItem) {}
         }
@@ -21,6 +22,7 @@ struct BilidownMacApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        AppIconProvider.installAsApplicationIcon()
         NSApp.activate(ignoringOtherApps: true)
     }
 }

@@ -1,50 +1,98 @@
+import AppKit
 import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var store: DownloadStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            HeaderView()
+        ZStack {
+            AppBackgroundView()
 
-            VStack(alignment: .leading, spacing: 16) {
-                LinkInputView(url: $store.videoURL)
-                DownloadOptionsView(
-                    outputDirectory: store.outputDirectory,
-                    quality: $store.quality,
-                    useChromeCookies: $store.useChromeCookies,
-                    chooseOutputDirectory: store.chooseOutputDirectory
-                )
-            }
+            VStack(alignment: .leading, spacing: 22) {
+                HeaderView()
 
-            HStack {
-                Button {
-                    store.download()
-                } label: {
-                    Label(store.state.isRunning ? "下载中..." : "下载视频", systemImage: "arrow.down.circle.fill")
+                VStack(alignment: .leading, spacing: 16) {
+                    LinkInputView(url: $store.videoURL)
+                    DownloadOptionsView(
+                        outputDirectory: store.outputDirectory,
+                        quality: $store.quality,
+                        useChromeCookies: $store.useChromeCookies,
+                        chooseOutputDirectory: store.chooseOutputDirectory
+                    )
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(!store.canDownload)
+                .glassPanel(cornerRadius: 22)
 
-                StatusView(state: store.state)
+                HStack(spacing: 14) {
+                    Button {
+                        store.download()
+                    } label: {
+                        Label(store.state.isRunning ? "下载中..." : "下载视频", systemImage: "arrow.down.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(!store.canDownload)
 
-                Spacer()
+                    StatusView(state: store.state)
+
+                    Spacer()
+                }
+
+                LogView(text: store.logText)
             }
-
-            LogView(text: store.logText)
+            .padding(28)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .stroke(.white.opacity(0.55), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.10), radius: 32, y: 18)
+            .padding(.horizontal, 24)
+            .padding(.top, 38)
+            .padding(.bottom, 24)
         }
-        .padding(28)
+    }
+}
+
+private struct AppBackgroundView: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(nsColor: .windowBackgroundColor),
+                    Color(red: 0.90, green: 0.95, blue: 1.0)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            LinearGradient(
+                colors: [
+                    .blue.opacity(0.10),
+                    .clear,
+                    .white.opacity(0.30)
+                ],
+                startPoint: .bottomLeading,
+                endPoint: .topTrailing
+            )
+        }
+        .ignoresSafeArea()
     }
 }
 
 private struct HeaderView: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Bilidown Mac")
-                .font(.largeTitle.bold())
-            Text("输入 B 站链接，选择保存位置和清晰度，然后下载为 MP4。")
-                .foregroundStyle(.secondary)
+        HStack(spacing: 16) {
+            Image(nsImage: AppIconProvider.image())
+                .resizable()
+                .frame(width: 68, height: 68)
+                .shadow(color: .blue.opacity(0.16), radius: 10, y: 5)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Bilidown Mac")
+                    .font(.largeTitle.bold())
+                Text("输入 B 站链接，选择保存位置和清晰度，然后下载为 MP4。")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -149,8 +197,32 @@ private struct LogView: View {
                     .textSelection(.enabled)
                     .padding(12)
             }
-            .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(.white.opacity(0.45), lineWidth: 1)
+            }
             .frame(minHeight: 140)
         }
+    }
+}
+
+private struct GlassPanelModifier: ViewModifier {
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .padding(16)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(.white.opacity(0.48), lineWidth: 1)
+            }
+    }
+}
+
+private extension View {
+    func glassPanel(cornerRadius: CGFloat) -> some View {
+        modifier(GlassPanelModifier(cornerRadius: cornerRadius))
     }
 }
