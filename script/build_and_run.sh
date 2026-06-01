@@ -27,7 +27,9 @@ mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 ditto "$ROOT_DIR/mac-bilidown" "$APP_RESOURCES/mac-bilidown"
-cp "$ROOT_DIR/Assets/AppIcon.icns" "$APP_RESOURCES/AppIcon.icns"
+for icon_file in AppIcon.icns AppIconDark.icns AppIconTransparent.icns; do
+  cp "$ROOT_DIR/Assets/$icon_file" "$APP_RESOURCES/$icon_file"
+done
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

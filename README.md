@@ -4,7 +4,7 @@
 
 这是一个 macOS 版 B 站视频下载工具。可以直接打开图形 App 输入链接下载，也可以用命令行工作流调用。
 
-当前版本已经内置专属 App 图标，并在图形界面中加入了轻量的 macOS 玻璃材质效果。
+当前版本已经内置专属 App 图标，并在图形界面中加入了轻量的 macOS 玻璃材质效果。图标包含默认、深色、透明三种外观，App 内可以选择“自动 / 默认 / 深色 / 透明”。
 
 ## 图形 App
 
@@ -35,6 +35,20 @@ App 图标资源位于：
 ```text
 Assets/AppIcon.icns
 Assets/AppIcon.png
+Assets/AppIconDark.icns
+Assets/AppIconDark.png
+Assets/AppIconTransparent.icns
+Assets/AppIconTransparent.png
+```
+
+预览：
+
+![Bilidown Mac 图标变体](Assets/AppIconVariants.png)
+
+需要重新生成图标资源时运行：
+
+```bash
+./script/generate_app_icons.py
 ```
 
 ## 命令行

@@ -2,20 +2,31 @@ import AppKit
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("iconStylePreference") private var iconStylePreferenceRaw = IconStylePreference.automatic.rawValue
     @EnvironmentObject private var store: DownloadStore
+
+    private var iconStylePreference: IconStylePreference {
+        IconStylePreference(rawValue: iconStylePreferenceRaw) ?? .automatic
+    }
+
+    private var iconStyle: AppIconStyle {
+        iconStylePreference.resolved(isDarkMode: colorScheme == .dark)
+    }
 
     var body: some View {
         ZStack {
             AppBackgroundView()
 
             VStack(alignment: .leading, spacing: 22) {
-                HeaderView()
+                HeaderView(iconStyle: iconStyle)
 
                 VStack(alignment: .leading, spacing: 16) {
                     LinkInputView(url: $store.videoURL)
                     DownloadOptionsView(
                         outputDirectory: store.outputDirectory,
                         quality: $store.quality,
+                        iconStylePreference: $iconStylePreferenceRaw,
                         useChromeCookies: $store.useChromeCookies,
                         chooseOutputDirectory: store.chooseOutputDirectory
                     )
@@ -50,6 +61,16 @@ struct ContentView: View {
             .padding(.top, 38)
             .padding(.bottom, 24)
         }
+        .onAppear {
+            AppIconProvider.installAsApplicationIcon(style: iconStyle)
+        }
+        .onChange(of: colorScheme) { newValue in
+            let isDarkMode = newValue == .dark
+            AppIconProvider.installAsApplicationIcon(style: iconStylePreference.resolved(isDarkMode: isDarkMode))
+        }
+        .onChange(of: iconStylePreferenceRaw) { _ in
+            AppIconProvider.installAsApplicationIcon(style: iconStyle)
+        }
     }
 }
 
@@ -80,9 +101,11 @@ private struct AppBackgroundView: View {
 }
 
 private struct HeaderView: View {
+    let iconStyle: AppIconStyle
+
     var body: some View {
         HStack(spacing: 16) {
-            Image(nsImage: AppIconProvider.image())
+            Image(nsImage: AppIconProvider.image(style: iconStyle))
                 .resizable()
                 .frame(width: 68, height: 68)
                 .shadow(color: .blue.opacity(0.16), radius: 10, y: 5)
@@ -114,6 +137,7 @@ private struct LinkInputView: View {
 private struct DownloadOptionsView: View {
     let outputDirectory: URL
     @Binding var quality: DownloadQuality
+    @Binding var iconStylePreference: String
     @Binding var useChromeCookies: Bool
     let chooseOutputDirectory: () -> Void
 
@@ -150,6 +174,18 @@ private struct DownloadOptionsView: View {
                 Toggle("使用 Chrome Cookie（登录后可下载更高清晰度）", isOn: $useChromeCookies)
                     .toggleStyle(.checkbox)
                     .foregroundStyle(.secondary)
+            }
+
+            GridRow {
+                Text("App 图标")
+                    .font(.headline)
+                Picker("App 图标", selection: $iconStylePreference) {
+                    ForEach(IconStylePreference.allCases) { preference in
+                        Text(preference.label).tag(preference.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 360)
             }
         }
     }
