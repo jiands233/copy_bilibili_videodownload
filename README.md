@@ -1,16 +1,32 @@
-# Bilidown Mac Workflow
+# Bilidown Mac
 
-这是一个 macOS 版 B 站视频下载工作流。给它一个 Bilibili 链接，它会下载并合并成 MP4 文件。
+这是一个 macOS 版 B 站视频下载工具。可以直接打开图形 App 输入链接下载，也可以用命令行工作流调用。
 
-核心实现位于 [`mac-bilidown`](./mac-bilidown)：
+## 图形 App
 
-- `bin/bilidown`：命令行入口
-- `vendor/darwin-arm64`：Apple Silicon 依赖
-- `vendor/darwin-x64`：Intel Mac 依赖
-- `scripts/fetch-vendor-deps.zsh`：依赖修复/重拉脚本
-- `使用说明.md`：中文使用文档
+运行：
 
-## 快速开始
+```bash
+./script/build_and_run.sh
+```
+
+App 功能：
+
+- 输入 B 站视频链接
+- 选择保存文件夹
+- 选择清晰度：最佳、1080p、720p、仅音频
+- 点击“下载视频”后输出到所选目录
+- 默认不读取 Chrome Cookie；需要登录后高清资源时，勾选“使用 Chrome Cookie”
+
+构建脚本会生成并启动：
+
+```text
+dist/BilidownMac.app
+```
+
+Codex 里也配置了 Run action，可以直接点 Run 启动。
+
+## 命令行
 
 ```bash
 ./mac-bilidown/bin/bilidown doctor
@@ -27,6 +43,13 @@
 
 - [中文使用说明](./mac-bilidown/使用说明.md)
 - [English README](./mac-bilidown/README.md)
+
+核心 CLI 实现位于 [`mac-bilidown`](./mac-bilidown)：
+
+- `bin/bilidown`：命令行入口
+- `vendor/darwin-arm64`：Apple Silicon 依赖
+- `vendor/darwin-x64`：Intel Mac 依赖
+- `scripts/fetch-vendor-deps.zsh`：依赖修复/重拉脚本
 
 ## 说明
 

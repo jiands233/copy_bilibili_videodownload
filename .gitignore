@@ -10,6 +10,10 @@
 *.download
 *.gz.download
 
+# SwiftPM and generated app bundle
+.build/
+dist/
+
 # Editor and shell noise
 .idea/
 .vscode/
