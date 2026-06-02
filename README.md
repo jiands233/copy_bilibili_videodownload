@@ -78,4 +78,4 @@ Assets/AppIconTransparent.png
 
 ## 说明
 
-这个项目不复用原 Windows `.exe`，也不依赖原作者私有服务。下载能力基于 `yt-dlp` 的 Bilibili extractor 和内置 macOS `ffmpeg`。
+下载能力基于 `yt-dlp` 的 Bilibili extractor 和内置 macOS `ffmpeg`。
