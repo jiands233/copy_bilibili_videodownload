@@ -17,6 +17,9 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             AppBackgroundView()
+            WindowIconInstaller(iconStyle: iconStyle)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 22) {
                 HeaderView(iconStyle: iconStyle)

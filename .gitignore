@@ -13,6 +13,7 @@
 # SwiftPM and generated app bundle
 .build/
 dist/
+.cache/
 
 # Editor and shell noise
 .idea/

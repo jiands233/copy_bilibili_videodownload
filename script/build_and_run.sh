@@ -5,6 +5,10 @@ MODE="${1:-run}"
 APP_NAME="BilidownMac"
 BUNDLE_ID="com.local.BilidownMac"
 MIN_SYSTEM_VERSION="13.0"
+APP_VERSION="0.3.0"
+BUILD_VERSION="3"
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+CODESIGN="/usr/bin/codesign"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -30,6 +34,7 @@ ditto "$ROOT_DIR/mac-bilidown" "$APP_RESOURCES/mac-bilidown"
 for icon_file in AppIcon.icns AppIconDark.icns AppIconTransparent.icns; do
   cp "$ROOT_DIR/Assets/$icon_file" "$APP_RESOURCES/$icon_file"
 done
+cp "$ROOT_DIR/Assets/AppIcon.icns" "$APP_RESOURCES/$APP_NAME.icns"
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -41,13 +46,23 @@ cat >"$INFO_PLIST" <<PLIST
   <key>CFBundleIdentifier</key>
   <string>$BUNDLE_ID</string>
   <key>CFBundleIconFile</key>
-  <string>AppIcon</string>
+  <string>$APP_NAME.icns</string>
+  <key>CFBundleIconFiles</key>
+  <array>
+    <string>$APP_NAME.icns</string>
+  </array>
   <key>CFBundleIconName</key>
   <string>AppIcon</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleDisplayName</key>
+  <string>Bilidown Mac</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$APP_VERSION</string>
+  <key>CFBundleVersion</key>
+  <string>$BUILD_VERSION</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_SYSTEM_VERSION</string>
   <key>NSHighResolutionCapable</key>
@@ -57,6 +72,14 @@ cat >"$INFO_PLIST" <<PLIST
 </dict>
 </plist>
 PLIST
+
+touch "$APP_BUNDLE"
+if [[ -x "$LSREGISTER" ]]; then
+  "$LSREGISTER" -f "$APP_BUNDLE" >/dev/null 2>&1 || true
+fi
+if [[ -x "$CODESIGN" ]]; then
+  "$CODESIGN" --force --deep --sign - "$APP_BUNDLE" >/dev/null 2>&1 || true
+fi
 
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"

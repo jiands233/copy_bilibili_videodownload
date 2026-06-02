@@ -53,6 +53,8 @@ enum IconStylePreference: String, CaseIterable, Identifiable {
 }
 
 enum AppIconProvider {
+    private static var currentStyle: AppIconStyle = .light
+
     static func image(style: AppIconStyle) -> NSImage {
         if let resourceURL = Bundle.main.url(forResource: style.resourceName, withExtension: "icns"),
            let image = NSImage(contentsOf: resourceURL) {
@@ -63,6 +65,33 @@ enum AppIconProvider {
     }
 
     static func installAsApplicationIcon(style: AppIconStyle = .light) {
-        NSApp.applicationIconImage = image(style: style)
+        currentStyle = style
+        let icon = image(style: style)
+        NSApp.applicationIconImage = icon
+        installAsWindowIcon(icon)
+    }
+
+    static func installAsWindowIcon(style: AppIconStyle) {
+        currentStyle = style
+        installAsWindowIcon(image(style: style))
+    }
+
+    static func installAsWindowIcon(_ icon: NSImage) {
+        for window in NSApp.windows {
+            window.miniwindowImage = icon
+        }
+    }
+
+    static func installAsWindowIcon(style: AppIconStyle, for window: NSWindow?) {
+        guard let window else {
+            return
+        }
+
+        currentStyle = style
+        window.miniwindowImage = image(style: style)
+    }
+
+    static func installCurrentStyleAsWindowIcon(for window: NSWindow?) {
+        installAsWindowIcon(style: currentStyle, for: window)
     }
 }

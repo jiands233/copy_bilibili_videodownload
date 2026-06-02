@@ -30,6 +30,53 @@ dist/BilidownMac.app
 
 Codex 里也配置了 Run action，可以直接点 Run 启动。
 
+## Web 版
+
+运行：
+
+```bash
+./script/run_web.sh
+```
+
+打开：
+
+```text
+http://127.0.0.1:4789
+```
+
+Web 版功能：
+
+- 输入 B 站视频链接
+- 选择清晰度
+- 勾选是否使用 Chrome Cookie
+- 勾选是否下载全部分 P / 合集
+- 点击“选择文件夹”打开 macOS 原生文件夹选择窗口
+- 点击“下载视频”后由本机后端调用 `mac-bilidown/bin/bilidown`
+
+说明：这个 Web 只绑定在 `127.0.0.1`，也就是只给本机访问。它不会把 Cookie 或链接上传到外部服务器。
+
+### 打包 Web 版
+
+生成一个可以直接发给别人的文件夹：
+
+```bash
+./script/package_web.sh
+```
+
+打包结果：
+
+```text
+dist/BilidownWeb
+```
+
+把整个 `dist/BilidownWeb` 文件夹发给别人。对方在 Mac 上双击：
+
+```text
+启动 Bilidown Web.command
+```
+
+即可打开本地 Web 页面。这个文件夹内置 Node.js、`yt-dlp` 和 `ffmpeg`，支持 Apple Silicon 和 Intel Mac。
+
 App 图标资源位于：
 
 ```text

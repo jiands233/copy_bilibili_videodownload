@@ -20,9 +20,28 @@ struct BilidownMacApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var windowIconObserver: NSObjectProtocol?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        AppIconProvider.installAsApplicationIcon()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         AppIconProvider.installAsApplicationIcon()
+        windowIconObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeMainNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            AppIconProvider.installCurrentStyleAsWindowIcon(for: notification.object as? NSWindow)
+        }
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        if let windowIconObserver {
+            NotificationCenter.default.removeObserver(windowIconObserver)
+        }
     }
 }

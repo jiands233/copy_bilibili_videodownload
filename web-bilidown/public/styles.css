@@ -1,0 +1,253 @@
+:root {
+  color-scheme: light;
+  --background: #f4f8ff;
+  --panel: rgba(255, 255, 255, 0.78);
+  --text: #172033;
+  --muted: #657188;
+  --border: rgba(132, 153, 184, 0.22);
+  --accent: #0a84ff;
+  --accent-strong: #006ce6;
+  --shadow: 0 30px 80px rgba(48, 86, 140, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 16% 12%, rgba(36, 143, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 90% 20%, rgba(255, 255, 255, 0.88), transparent 30%),
+    linear-gradient(135deg, #ffffff 0%, var(--background) 58%, #e7f1ff 100%);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.shell {
+  width: min(920px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 56px 0;
+}
+
+.panel {
+  padding: 30px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+.header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.app-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  filter: drop-shadow(0 10px 18px rgba(14, 94, 185, 0.18));
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 42px);
+  letter-spacing: 0;
+}
+
+p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span,
+.result-title strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+input,
+select {
+  width: 100%;
+  height: 44px;
+  border: 1px solid rgba(120, 145, 180, 0.28);
+  border-radius: 12px;
+  padding: 0 13px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.76);
+  outline: none;
+}
+
+input:focus,
+select:focus {
+  border-color: rgba(10, 132, 255, 0.72);
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.12);
+}
+
+.path-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.options input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+button {
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 18px;
+  color: white;
+  background: var(--accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover {
+  background: var(--accent-strong);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+#doctor-button {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--border);
+}
+
+#doctor-button:hover,
+#choose-folder-button:hover {
+  background: white;
+}
+
+#choose-folder-button {
+  min-width: 112px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--border);
+}
+
+.result {
+  margin-top: 22px;
+}
+
+.result-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+#status {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+pre {
+  min-height: 180px;
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: #344058;
+  background: rgba(255, 255, 255, 0.55);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.success {
+  color: #168a3a !important;
+}
+
+.error {
+  color: #c4362f !important;
+}
+
+@media (max-width: 720px) {
+  .shell {
+    width: min(100vw - 20px, 920px);
+    padding: 18px 0;
+  }
+
+  .panel {
+    padding: 20px;
+    border-radius: 22px;
+  }
+
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .path-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  button {
+    width: 100%;
+  }
+}

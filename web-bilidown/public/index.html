@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bilidown Web</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <header class="header">
+          <img class="app-icon" src="/assets/app-icon.png" alt="Bilidown 图标">
+          <div>
+            <h1>Bilidown Web</h1>
+            <p>粘贴 B 站链接，下载为 MP4。</p>
+          </div>
+        </header>
+
+        <form id="download-form" class="form">
+          <label class="field">
+            <span>视频链接</span>
+            <input id="url" name="url" type="url" placeholder="https://www.bilibili.com/video/BV..." required>
+          </label>
+
+          <div class="row">
+            <label class="field">
+              <span>清晰度</span>
+              <select id="quality" name="quality">
+                <option value="best">最佳画质</option>
+                <option value="1080p">1080p</option>
+                <option value="720p">720p</option>
+                <option value="audio">仅音频</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>保存到</span>
+              <div class="path-picker">
+                <input id="output" name="output" type="text" value="~/Downloads/Bilidown">
+                <button id="choose-folder-button" type="button">选择文件夹</button>
+              </div>
+            </label>
+          </div>
+
+          <div class="options">
+            <label>
+              <input id="cookies" name="cookies" type="checkbox" checked>
+              使用 Chrome Cookie
+            </label>
+            <label>
+              <input id="playlist" name="playlist" type="checkbox">
+              下载全部分 P / 合集
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="download-button" type="submit">下载视频</button>
+            <button id="doctor-button" type="button">检查环境</button>
+          </div>
+        </form>
+
+        <section class="result">
+          <div class="result-title">
+            <strong>状态</strong>
+            <span id="status">准备就绪</span>
+          </div>
+          <pre id="log">日志会显示在这里。</pre>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
